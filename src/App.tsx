@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
+import { generatePrompt } from './config/prompt';
+import { SUBJECTS, LEARNING_RESOURCES } from './config/knowledge';
 
 interface Message {
   id: number;
@@ -24,7 +26,7 @@ async function queryGeminiAPI(prompt: string) {
       },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: prompt }]
+          parts: [{ text: generatePrompt(prompt) }]
         }]
       })
     });
@@ -39,7 +41,7 @@ async function queryGeminiAPI(prompt: string) {
     return data.candidates[0].content.parts[0].text;
   } catch (error) {
     console.error('Error querying Gemini API:', error);
-    return "I apologize, but I'm having trouble connecting to my knowledge base right now. Please try again later.";
+    return "Вибачте, але зараз я маю проблеми з підключенням до бази знань. Будь ласка, спробуйте пізніше.";
   }
 }
 
@@ -53,7 +55,7 @@ function App() {
     if (!input.trim() || isLoading) return;
 
     if (!GEMINI_API_KEY) {
-      setError('Please set your Gemini API key in the .env file');
+      setError('Будь ласка, встановіть ваш Gemini API ключ у файлі .env');
       return;
     }
 
@@ -82,7 +84,7 @@ function App() {
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
       console.error('Error handling message:', error);
-      setError('Failed to get response from AI. Please try again.');
+      setError('Не вдалося отримати відповідь від ШІ. Будь ласка, спробуйте ще раз.');
     } finally {
       setIsLoading(false);
     }
