@@ -1,19 +1,37 @@
 import { Pinecone } from '@pinecone-database/pinecone';
 import OpenAI from 'openai';
 
+const PINECONE_API_KEY = import.meta.env.VITE_PINECONE_API_KEY;
+const PINECONE_ENVIRONMENT = import.meta.env.VITE_PINECONE_ENVIRONMENT;
+const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+
+if (!PINECONE_API_KEY || !PINECONE_ENVIRONMENT || !OPENAI_API_KEY) {
+  console.error('Missing required environment variables');
+}
+
 const pinecone = new Pinecone({
-  apiKey: import.meta.env.VITE_PINECONE_API_KEY,
-  environment: import.meta.env.VITE_PINECONE_ENVIRONMENT
+  apiKey: PINECONE_API_KEY || '',
+  environment: PINECONE_ENVIRONMENT || ''
 });
 
 const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  apiKey: OPENAI_API_KEY || '',
   dangerouslyAllowBrowser: true
 });
 
-export const schoolInfoIndex = pinecone.index('school-info');
+let schoolInfoIndex: any = null;
+
+try {
+  schoolInfoIndex = pinecone.index('school-info');
+} catch (error) {
+  console.error('Error initializing Pinecone index:', error);
+}
 
 export async function querySchoolInfo(query: string) {
+  if (!schoolInfoIndex) {
+    return "Система тимчасово недоступна";
+  }
+
   try {
     const queryEmbedding = await generateEmbedding(query);
     const results = await schoolInfoIndex.query({

@@ -22,7 +22,7 @@ async function queryGeminiAPI(prompt: string) {
   try {
     // Get school-specific information from Pinecone
     const schoolInfo = await querySchoolInfo(prompt);
-    const contextEnrichedPrompt = `${prompt}\n\nІнформація про заклад:\n${JSON.stringify(schoolInfo)}`;
+    const contextEnrichedPrompt = `${prompt}\n\nІнформація про заклад:\n${schoolInfo}`;
 
     const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
