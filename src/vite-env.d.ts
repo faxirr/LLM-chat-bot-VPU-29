@@ -4,6 +4,7 @@ interface ImportMetaEnv {
   readonly VITE_GEMINI_API_KEY: string
   readonly VITE_PINECONE_API_KEY: string
   readonly VITE_PINECONE_ENVIRONMENT: string
+  readonly VITE_OPENAI_API_KEY: string
 }
 
 interface ImportMeta {

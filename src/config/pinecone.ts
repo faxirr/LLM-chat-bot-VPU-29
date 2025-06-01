@@ -1,8 +1,14 @@
 import { Pinecone } from '@pinecone-database/pinecone';
+import OpenAI from 'openai';
 
 const pinecone = new Pinecone({
-  apiKey: import.meta.env.VITE_PINECONE_API_KEY as string,
-  environment: import.meta.env.VITE_PINECONE_ENVIRONMENT as string
+  apiKey: import.meta.env.VITE_PINECONE_API_KEY,
+  environment: import.meta.env.VITE_PINECONE_ENVIRONMENT
+});
+
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true
 });
 
 export const schoolInfoIndex = pinecone.index('school-info');
@@ -16,16 +22,27 @@ export async function querySchoolInfo(query: string) {
       includeMetadata: true
     });
     
-    return results.matches.map(match => match.metadata);
+    if (!results.matches.length) {
+      return "Інформація про заклад недоступна";
+    }
+
+    return results.matches.map(match => match.metadata).join('\n');
   } catch (error) {
     console.error('Error querying school information:', error);
-    return null;
+    return "Помилка при отриманні інформації про заклад";
   }
 }
 
-// This function would need to be implemented using an embedding model
 async function generateEmbedding(text: string): Promise<number[]> {
-  // Implementation would depend on your chosen embedding model
-  // For now, returning a placeholder
-  return new Array(1536).fill(0);
+  try {
+    const response = await openai.embeddings.create({
+      model: "text-embedding-ada-002",
+      input: text,
+    });
+    
+    return response.data[0].embedding;
+  } catch (error) {
+    console.error('Error generating embedding:', error);
+    return new Array(1536).fill(0);
+  }
 }
