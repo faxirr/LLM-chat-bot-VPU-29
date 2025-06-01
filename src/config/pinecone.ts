@@ -1,8 +1,8 @@
 import { Pinecone } from '@pinecone-database/pinecone';
 
 const pinecone = new Pinecone({
-  apiKey: import.meta.env.VITE_PINECONE_API_KEY,
-  environment: import.meta.env.VITE_PINECONE_ENVIRONMENT
+  apiKey: import.meta.env.VITE_PINECONE_API_KEY as string,
+  baseUrl: `https://${import.meta.env.VITE_PINECONE_ENVIRONMENT}.pinecone.io`
 });
 
 export const schoolInfoIndex = pinecone.index('school-info');
