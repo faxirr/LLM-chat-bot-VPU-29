@@ -1,8 +1,14 @@
 // src/utils/uploadKnowledge.ts
 // Утиліта для завантаження вашої бази знань у Pinecone
 
+// Поліфіл для браузерного середовища
+if (typeof global === 'undefined') {
+    (window as any).global = globalThis;
+}
+
 import { SUBJECTS, LEARNING_RESOURCES } from '../config/knowledge';
 import { Pinecone } from '@pinecone-database/pinecone';
+import type { Topic } from '../types/knowledge';
 
 const GEMINI_EMBEDDING_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -36,13 +42,13 @@ async function createEmbedding(text: string): Promise<number[]> {
 }
 
 // Конвертація knowledge.ts у тексти для векторизації
-function convertKnowledgeToTexts(): Array<{id: string, text: string, metadata: any}> {
-    const texts: Array<{id: string, text: string, metadata: any}> = [];
+function convertKnowledgeToTexts(): Array<{id: string, text: string, metadata: Record<string, any>}> {
+    const texts: Array<{id: string, text: string, metadata: Record<string, any>}> = [];
     let counter = 0;
 
     // Обробка SUBJECTS
     Object.entries(SUBJECTS).forEach(([subjectKey, subject]) => {
-        subject.topics.forEach((topic) => {
+        subject.topics.forEach((topic: Topic) => {
             // Основна інформація про тему
             const topicText = `
 Предмет: ${subjectKey === 'mathematics' ? 'Математика' : 'Фізика'}
@@ -66,8 +72,8 @@ function convertKnowledgeToTexts(): Array<{id: string, text: string, metadata: a
             });
 
             // Приклади (якщо є)
-            if ('examples' in topic) {
-                Object.entries(topic.examples).forEach(([exampleKey, example]) => {
+            if ('examples' in topic && topic.examples) {
+                Object.entries(topic.examples as Record<string, string>).forEach(([exampleKey, example]) => {
                     const exampleText = `
 Предмет: ${subjectKey === 'mathematics' ? 'Математика' : 'Фізика'}
 Тема: ${exampleKey}
@@ -93,8 +99,8 @@ function convertKnowledgeToTexts(): Array<{id: string, text: string, metadata: a
             }
 
             // Формули (якщо є)
-            if ('formulas' in topic) {
-                Object.entries(topic.formulas).forEach(([formulaKey, formula]) => {
+            if ('formulas' in topic && topic.formulas) {
+                Object.entries(topic.formulas as Record<string, string>).forEach(([formulaKey, formula]) => {
                     const formulaText = `
 Предмет: ${subjectKey === 'mathematics' ? 'Математика' : 'Фізика'}
 Розділ: ${topic.name}
@@ -268,5 +274,29 @@ export async function clearPineconeNamespace(): Promise<string> {
     } catch (error) {
         console.error('❌ Помилка очищення:', error);
         return `❌ Помилка очищення: ${error instanceof Error ? error.message : 'Невідома помилка'}`;
+    }
+}
+
+// Функція для перевірки стану namespace
+export async function checkNamespaceStats(): Promise<string> {
+    try {
+        if (!PINECONE_API_KEY) {
+            return '❌ Відсутній VITE_PINECONE_API_KEY';
+        }
+
+        const index = pinecone.index(PINECONE_INDEX_NAME);
+        const stats = await index.describeIndexStats();
+
+        const namespaceStats = stats.namespaces?.[PINECONE_NAMESPACE];
+        if (!namespaceStats) {
+            return `📊 Namespace "${PINECONE_NAMESPACE}" порожній або не існує`;
+        }
+
+        return `📊 Статистика namespace "${PINECONE_NAMESPACE}":
+- Кількість векторів: ${namespaceStats.vectorCount}
+- Розмір: ${(namespaceStats.vectorCount || 0)} records`;
+
+    } catch (error) {
+        return `❌ Помилка отримання статистики: ${error instanceof Error ? error.message : 'Невідома помилка'}`;
     }
 }

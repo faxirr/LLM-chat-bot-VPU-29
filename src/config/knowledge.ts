@@ -1,4 +1,7 @@
-export const SUBJECTS = {
+// config/knowledge.ts
+import type { KnowledgeBase, LearningResources } from '../types/knowledge';
+
+export const SUBJECTS: KnowledgeBase = {
     mathematics: {
         topics: [
             {
@@ -47,7 +50,7 @@ export const SUBJECTS = {
     }
 };
 
-export const LEARNING_RESOURCES = {
+export const LEARNING_RESOURCES: LearningResources = {
     websites: [
         {
             name: 'Khan Academy',
