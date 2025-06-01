@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
 import { generatePrompt } from './config/prompt';
 import { SUBJECTS, LEARNING_RESOURCES } from './config/knowledge';
+import { querySchoolInfo } from './config/pinecone';
 
 interface Message {
   id: number;
@@ -19,6 +20,10 @@ async function queryGeminiAPI(prompt: string) {
   }
 
   try {
+    // Get school-specific information from Pinecone
+    const schoolInfo = await querySchoolInfo(prompt);
+    const contextEnrichedPrompt = `${prompt}\n\nІнформація про заклад:\n${JSON.stringify(schoolInfo)}`;
+
     const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
@@ -26,7 +31,7 @@ async function queryGeminiAPI(prompt: string) {
       },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: generatePrompt(prompt) }]
+          parts: [{ text: generatePrompt(contextEnrichedPrompt) }]
         }]
       })
     });
