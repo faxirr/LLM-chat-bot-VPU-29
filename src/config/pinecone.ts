@@ -1,14 +1,12 @@
 import { Pinecone } from '@pinecone-database/pinecone';
 
 const pineconeApiKey = import.meta.env.VITE_PINECONE_API_KEY;
-const pineconeEnvironment = import.meta.env.VITE_PINECONE_ENVIRONMENT;
 
-if (!pineconeApiKey || !pineconeEnvironment) {
+if (!pineconeApiKey) {
   throw new Error('Missing required environment variables');
 }
 
 const pinecone = new Pinecone({
-  environment: pineconeEnvironment,
   apiKey: pineconeApiKey
 });
 
