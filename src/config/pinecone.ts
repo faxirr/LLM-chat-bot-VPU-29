@@ -1,63 +1,22 @@
-import { Pinecone } from '@pinecone-database/pinecone';
-
-const pineconeApiKey = import.meta.env.VITE_PINECONE_API_KEY;
-
-if (!pineconeApiKey) {
-  throw new Error('Missing required environment variables');
-}
-
-const pinecone = new Pinecone({
-  apiKey: pineconeApiKey
-});
-
 export async function querySchoolInfo(query: string): Promise<string> {
   try {
-    const index = pinecone.index('school-info');
-    const queryEmbedding = await generateEmbedding(query);
-    
-    const queryResponse = await index.query({
-      vector: queryEmbedding,
-      topK: 3,
-      includeMetadata: true
-    });
-
-    return queryResponse.matches
-      .map(match => match.metadata?.content || '')
-      .join('\n');
-  } catch (error) {
-    console.error('Error querying Pinecone:', error);
-    return '';
-  }
-}
-
-async function generateEmbedding(text: string): Promise<number[]> {
-  const openaiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
-  
-  if (!openaiApiKey) {
-    throw new Error('OpenAI API key is not set');
-  }
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/embeddings', {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/query-school`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        input: text,
-        model: 'text-embedding-ada-002'
-      })
+      body: JSON.stringify({ query })
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.statusText}`);
+      throw new Error(`API request failed: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.data[0].embedding;
+    return data.schoolInfo || '';
   } catch (error) {
-    console.error('Error generating embedding:', error);
-    return new Array(1536).fill(0); // Return zero vector as fallback
+    console.error('Error querying school info:', error);
+    return '';
   }
 }
