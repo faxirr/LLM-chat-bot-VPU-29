@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
-import { generatePrompt } from './config/prompt';
 import { SUBJECTS, LEARNING_RESOURCES } from './config/knowledge';
-import { querySchoolInfo } from './config/pinecone';
 
 interface Message {
   id: number;
@@ -12,45 +10,48 @@ interface Message {
 }
 
 const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-async function queryGeminiAPI(prompt: string) {
-  if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key is not set');
-  }
-
+async function queryAI(input: string) {
   try {
-    // Get school-specific information from Pinecone
-    const schoolInfo = await querySchoolInfo(prompt);
-    const contextEnrichedPrompt = `${prompt}\n\nІнформація про заклад:\n${schoolInfo}`;
-
-    const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${GEMINI_API_KEY}`, {
+    const schoolInfo = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/query-school`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json'
       },
+      body: JSON.stringify({ query: input })
+    }).then(res => res.json()).then(data => data.schoolInfo || '');
+
+    const prompt = `Ви - шкільний помічник, який допомагає учням та вчителям з різними питаннями.
+Будь ласка, дайте відповідь на наступне запитання або запит, використовуючи доступну інформацію про школу:
+
+${input}
+
+Інформація про заклад:
+${schoolInfo}
+
+Відповідайте українською мовою, чітко та зрозуміло. Якщо інформація відсутня або ви не впевнені, чесно про це скажіть.`;
+
+    const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{
-          parts: [{ text: generatePrompt(contextEnrichedPrompt) }]
+          parts: [{ text: prompt }]
         }]
       })
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('API Error:', errorData);
-      throw new Error(`API request failed: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`API request failed: ${response.status}`);
     const data = await response.json();
     return data.candidates[0].content.parts[0].text;
   } catch (error) {
-    console.error('Error querying Gemini API:', error);
-    return "Вибачте, але зараз я маю проблеми з підключенням до бази знань. Будь ласка, спробуйте пізніше.";
+    console.error('Error:', error);
+    return "Вибачте, але зараз я маю проблеми з підключенням. Будь ласка, спробуйте пізніше.";
   }
 }
 
-function App() {
+export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -58,47 +59,26 @@ function App() {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
-
-    if (!GEMINI_API_KEY) {
+    if (!import.meta.env.VITE_GEMINI_API_KEY) {
       setError('Будь ласка, встановіть ваш Gemini API ключ у файлі .env');
       return;
     }
 
-    const userMessage: Message = {
-      id: Date.now(),
-      text: input,
-      sender: 'user',
-      timestamp: new Date(),
-    };
-
+    const userMessage = { id: Date.now(), text: input, sender: 'user' as const, timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await queryGeminiAPI(input);
-      
-      const botMessage: Message = {
-        id: Date.now() + 1,
-        text: response,
-        sender: 'bot',
-        timestamp: new Date(),
-      };
-
+      const response = await queryAI(input);
+      const botMessage = { id: Date.now() + 1, text: response, sender: 'bot' as const, timestamp: new Date() };
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      console.error('Error handling message:', error);
+      console.error('Error:', error);
       setError('Не вдалося отримати відповідь від ШІ. Будь ласка, спробуйте ще раз.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
     }
   };
 
@@ -114,26 +94,17 @@ function App() {
       <div className="flex-1 max-w-4xl mx-auto w-full p-4 overflow-y-auto">
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-            <span className="block sm:inline">{error}</span>
+            {error}
           </div>
         )}
         <div className="space-y-4">
           {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg p-4 ${
-                  message.sender === 'user'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-800'
-                } shadow-md`}
-              >
+            <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] rounded-lg p-4 ${
+                message.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'
+              } shadow-md`}>
                 <p>{message.text}</p>
-                <span className="text-xs opacity-75 mt-1 block">
-                  {message.timestamp.toLocaleTimeString()}
-                </span>
+                <span className="text-xs opacity-75 mt-1 block">{message.timestamp.toLocaleTimeString()}</span>
               </div>
             </div>
           ))}
@@ -141,9 +112,10 @@ function App() {
             <div className="flex justify-start">
               <div className="bg-white text-gray-800 rounded-lg p-4 shadow-md">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                  {[0, 0.2, 0.4].map((delay, i) => (
+                    <div key={i} className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" 
+                         style={{ animationDelay: `${delay}s` }} />
+                  ))}
                 </div>
               </div>
             </div>
@@ -158,7 +130,7 @@ function App() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder="Запитайте щось..."
               className="flex-1 rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isLoading}
@@ -178,5 +150,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
