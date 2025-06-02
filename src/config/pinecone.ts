@@ -8,8 +8,8 @@ if (!pineconeApiKey || !pineconeEnvironment) {
 }
 
 const pinecone = new Pinecone({
-  apiKey: pineconeApiKey,
-  environment: pineconeEnvironment
+  environment: pineconeEnvironment,
+  apiKey: pineconeApiKey
 });
 
 export async function querySchoolInfo(query: string): Promise<string> {

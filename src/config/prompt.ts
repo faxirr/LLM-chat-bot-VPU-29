@@ -5,3 +5,4 @@ export function generatePrompt(userInput: string): string {
 ${userInput}
 
 Відповідайте українською мовою, чітко та зрозуміло. Якщо інформація відсутня або ви не впевнені, чесно про це скажіть.`;
+}
