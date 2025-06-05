@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { MessageCircle, Send } from 'lucide-react';
-import { SUBJECTS, LEARNING_RESOURCES } from './config/knowledge';
 
 interface Message {
   id: number;
@@ -9,7 +8,10 @@ interface Message {
   timestamp: Date;
 }
 
-const GEMINI_API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+const SUBJECTS = [
+  'Математика', 'Українська мова', 'Історія', 'Фізика',
+  'Хімія', 'Біологія', 'Географія', 'Інформатика', 'Англійська мова'
+];
 
 async function queryAI(input: string) {
   try {
@@ -32,7 +34,7 @@ ${schoolInfo}
 
 Відповідайте українською мовою, чітко та зрозуміло. Якщо інформація відсутня або ви не впевнені, чесно про це скажіть.`;
 
-    const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
